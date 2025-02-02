@@ -11,8 +11,8 @@ public static class CosmosHandler
     static CosmosHandler()
     {
         Client = new CosmosClient(
-            accountEndpoint: "https://msdocs-140042544.documents.azure.com:443/", 
-            authKeyOrResourceToken: "QWkSeYOL2xrstEpGRu4kP6tqI0uXNIPOAkUQMKUctCuiKae4IprfksfUSMRABtJYSDY23bkg0Se2ACDbucMIEg=="
+            accountEndpoint: "<CosmosDBUrl>", 
+            authKeyOrResourceToken: "CosmosDBPrimaryKey"
         );
     }
     
