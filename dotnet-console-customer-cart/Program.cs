@@ -42,7 +42,7 @@ addProductCommand.AddOption(countryOption);
 addProductCommand.AddOption(productOption);
 
 addProductCommand.SetHandler(
-    CosmosHandler.AddProductToCartAsync,
+    CosmosHandler.UpdateProductToCartAsync,
     nameOption,
     stateOption,
     countryOption,
@@ -50,22 +50,6 @@ addProductCommand.SetHandler(
 );
 
 rootCommand.Add(addProductCommand);
-
-// Remove Product from Cart
-var removeProductCommand = new Command("removeProduct", "Remove a product from the customer's cart");
-
-removeProductCommand.AddOption(nameOption);
-removeProductCommand.AddOption(productOption);
-removeProductCommand.AddOption(countryOption);
-
-removeProductCommand.SetHandler(
-    CosmosHandler.RemoveProductFromCartAsync,
-    nameOption,
-    productOption,
-    countryOption
-);
-
-rootCommand.Add(removeProductCommand);
 
 // Update Customer Email
 var updateCustomerCommand = new Command("updateCustomer", "Update customer email");
@@ -75,11 +59,15 @@ var newEmailOption = new Option<string>("--email") { IsRequired = true };
 
 updateCustomerCommand.AddOption(idOption);
 updateCustomerCommand.AddOption(newEmailOption);
+updateCustomerCommand.AddOption(stateOption);
+updateCustomerCommand.AddOption(countryOption);
 
 updateCustomerCommand.SetHandler(
     CosmosHandler.UpdateCustomerEmailAsync,
     idOption,
-    newEmailOption
+    newEmailOption,
+    stateOption,
+    countryOption
 );
 
 rootCommand.Add(updateCustomerCommand);
@@ -88,11 +76,13 @@ rootCommand.Add(updateCustomerCommand);
 var deleteCustomerCommand = new Command("deleteCustomer", "Delete a customer");
 
 deleteCustomerCommand.AddOption(idOption);
+deleteCustomerCommand.AddOption(stateOption);
 deleteCustomerCommand.AddOption(countryOption);
 
 deleteCustomerCommand.SetHandler(
     CosmosHandler.DeleteCustomerAsync,
     idOption,
+    stateOption,
     countryOption
 );
 

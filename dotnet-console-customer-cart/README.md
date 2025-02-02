@@ -37,17 +37,12 @@ dotnet run -- addProduct --name "John Doe" --state "CA" --country "USA" --produc
 
 ### Update Customer Email
 ```sh
-dotnet run -- updateCustomer --id "john-doe" --email "new-email@example.com"
-```
-
-### Remove a Product from Cart
-```sh
-dotnet run -- removeProduct --name "John Doe" --product "Laptop" --country "USA"
+dotnet run -- updateCustomer --id "john-doe" --email "new-email@example.com" --state "CA" --country "USA"
 ```
 
 ### Delete Customer
 ```sh
-dotnet run -- deleteCustomer --id "john-doe" --country "USA"
+dotnet run -- deleteCustomer --id "john-doe" --state "CA" --country "USA"
 ```
 
 ## Features

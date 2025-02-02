@@ -11,8 +11,8 @@ public static class CosmosHandler
     static CosmosHandler()
     {
         Client = new CosmosClient(
-            accountEndpoint: "<CosmosDBUrl>", 
-            authKeyOrResourceToken: "CosmosDBPrimaryKey"
+            accountEndpoint: "https://msdocs-140042544.documents.azure.com:443/", 
+            authKeyOrResourceToken: "QWkSeYOL2xrstEpGRu4kP6tqI0uXNIPOAkUQMKUctCuiKae4IprfksfUSMRABtJYSDY23bkg0Se2ACDbucMIEg=="
         );
     }
     
@@ -38,7 +38,10 @@ public static class CosmosHandler
     {
         var container = await GetOrCreateContainerAsync();
         var id = name.Kebaberize();
-        var partitionKey = new PartitionKey(country);
+        var partitionKey = new PartitionKeyBuilder()
+            .Add(country)
+            .Add(state)
+            .Build();
 
         var customer = new {
             id = id,
@@ -52,85 +55,84 @@ public static class CosmosHandler
             location = $"{state}, {country}",
             address = new { state, country }
         };
+        var cart = new {
+            id = $"{id}-cart",
+            customerId = id,
+            address = new { state, country },
+            items = new { }
+        };
 
         var batch = container.CreateTransactionalBatch(partitionKey)
             .CreateItem(customer)
-            .CreateItem(shippingInfo);
+            .CreateItem(shippingInfo)
+            .CreateItem(cart);
 
-        var response = await batch.ExecuteAsync();
-        Console.WriteLine($"Customer '{name}' and shipping address added with status code {response.StatusCode}");
+        using var response = await batch.ExecuteAsync();
+        Console.WriteLine($"Customer '{name}' shipping and cart address added with status code {response.StatusCode}");
     }
     
-    public static async Task UpdateCustomerEmailAsync(string id, string email)
+    public static async Task UpdateCustomerEmailAsync(string id, string email, string state, string country)
     {
         var container = await GetOrCreateContainerAsync();
-        var partitionKey = new PartitionKey(id);
+        var partitionKey = new PartitionKeyBuilder()
+            .Add(country)
+            .Add(state)
+            .Build();
+        
         var customerResponse = await container.ReadItemAsync<dynamic>(id, partitionKey);
         var customer = customerResponse.Resource;
         customer.email = email;
-        var response = await container.ReplaceItemAsync(customer, id, partitionKey);
+        var response = await container.ReplaceItemAsync(customer, id);
         Console.WriteLine($"Updated customer '{id}' email with status code {response.StatusCode}");
     }
     
-    public static async Task DeleteCustomerAsync(string id, string country)
+    public static async Task DeleteCustomerAsync(string id, string state, string country)
     {
         var container = await GetOrCreateContainerAsync();
-        var partitionKey = new PartitionKey(country);
-        var response = await container.DeleteItemAsync<dynamic>(id, partitionKey);
-        Console.WriteLine($"Deleted customer '{id}' with status code {response.StatusCode}");
+        var partitionKey = new PartitionKeyBuilder()
+            .Add(country)
+            .Add(state)
+            .Build();
+
+        try
+        {
+            // Creiamo una transaction batch per eliminare tutti i documenti correlati
+            var batch = container.CreateTransactionalBatch(partitionKey)
+                .DeleteItem(id)                     // Elimina il cliente
+                .DeleteItem($"{id}-shipping")       // Elimina l'indirizzo di spedizione
+                .DeleteItem($"{id}-cart");          // Elimina il carrello
+
+            using var response = await batch.ExecuteAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"Successfully deleted customer '{id}' and all dependencies.");
+            }
+            else
+            {
+                Console.WriteLine($"Failed to delete customer '{id}'. Status Code: {response.StatusCode}");
+            }
+        }
+        catch (CosmosException ex)
+        {
+            Console.WriteLine($"Error deleting customer '{id}': {ex.Message}");
+        }
     }
     
-    public static async Task AddProductToCartAsync(string name, string state, string country, string product)
+    public static async Task UpdateProductToCartAsync(string name, string state, string country, string product)
     {
         var container = await GetOrCreateContainerAsync();
         var id = name.Kebaberize();
         var cartId = $"{id}-cart";
-        var partitionKey = new PartitionKey(country);
 
         var cart = new {
-            id = cartId,
+            id = $"{id}-cart",
             customerId = id,
-            items = new[] { product },
-            address = new { state, country }
+            address = new { state, country },
+            items = new { product }
         };
 
         await container.UpsertItemAsync(cart);
         Console.WriteLine($"Product '{product}' added to cart for customer '{name}'");
     }   
-    
-    public static async Task RemoveProductFromCartAsync(string customerId, string productId, string country)
-    {
-        var container = await GetOrCreateContainerAsync();
-        var cartId = $"{customerId}-cart";
-        var partitionKey = new PartitionKey(country);
-
-        // Fetch the current cart
-        var cartResponse = await container.ReadItemAsync<dynamic>(cartId, partitionKey);
-        var cart = cartResponse.Resource;
-
-        // Remove the product from the items list if it exists
-        var items = new List<string>(cart.items.ToObject<IEnumerable<string>>());
-        if (items.Contains(productId))
-        {
-            items.Remove(productId);
-            cart.items = items.ToArray();
-
-            // If there are no items left in the cart, remove the cart entirely
-            if (items.Count == 0)
-            {
-                await container.DeleteItemAsync<dynamic>(cartId, partitionKey);
-                Console.WriteLine($"Cart for customer '{customerId}' is empty and has been removed.");
-            }
-            else
-            {
-                // Update the cart
-                await container.ReplaceItemAsync(cart, cartId, partitionKey);
-                Console.WriteLine($"Product '{productId}' removed from cart for customer '{customerId}'");
-            }
-        }
-        else
-        {
-            Console.WriteLine($"Product '{productId}' not found in cart for customer '{customerId}'");
-        }
-    }
 }
